@@ -35,16 +35,6 @@
 			path = MacDeck;
 			sourceTree = "<group>";
 		};
-		0315E88E2CD5636B00A3464B /* MacDeckTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MacDeckTests;
-			sourceTree = "<group>";
-		};
-		0315E8982CD5636B00A3464B /* MacDeckUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MacDeckUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -76,8 +66,6 @@
 			isa = PBXGroup;
 			children = (
 				0315E87C2CD5636900A3464B /* MacDeck */,
-				0315E88E2CD5636B00A3464B /* MacDeckTests */,
-				0315E8982CD5636B00A3464B /* MacDeckUITests */,
 				0315E87B2CD5636900A3464B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -130,9 +118,6 @@
 			dependencies = (
 				0315E88D2CD5636B00A3464B /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				0315E88E2CD5636B00A3464B /* MacDeckTests */,
-			);
 			name = MacDeckTests;
 			packageProductDependencies = (
 			);
@@ -152,9 +137,6 @@
 			);
 			dependencies = (
 				0315E8972CD5636B00A3464B /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				0315E8982CD5636B00A3464B /* MacDeckUITests */,
 			);
 			name = MacDeckUITests;
 			packageProductDependencies = (
