@@ -51,7 +51,7 @@ struct Card: Identifiable, Equatable {
             return .secondary
         }
     }
-    
+
 }
 
 
@@ -151,6 +151,35 @@ struct CopyButton: View {
     }
 }
 
+struct CardView: View {
+    let card: Card
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(.background)
+                .shadow(radius: 1)
+
+            RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(.secondary.opacity(0.3), lineWidth: 0.5)
+
+            VStack(spacing: 0) {
+                Text(card.rank.first.map { String($0) } ?? "")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(card.color)
+                card.suitImage
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(card.color)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(card.color)
+            }
+            .padding(2)
+        }
+        .frame(width: 20, height: 32)
+    }
+
+}
+
 
 
 struct CardResultView: View {
@@ -160,37 +189,19 @@ struct CardResultView: View {
     var body: some View {
         HStack {
             if let card = card {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(.background)
-                        .shadow(radius: 1)
-
-                    RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(.secondary.opacity(0.3), lineWidth: 0.5)
-
-                    VStack(spacing: 0) {
-                        Text(card.rank.first.map { String($0) } ?? "")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(card.color)
-                        card.suitImage
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(card.color)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(card.color)
-                    }
-                    .padding(2)
-                }
-                .frame(width: 20, height: 32)
+                CardView(card: card)
                 Spacer()
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
+                HStack {
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 8) {
                         Text(card.description)
                             .foregroundColor(card.color)
-                        CopyButton(card: card)
+                        Text("\(remainingCards) cards remaining")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    Text("\(remainingCards) cards remaining")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Spacer()
+                    CopyButton(card: card)
                 }
                 Spacer()
             }
@@ -203,30 +214,25 @@ struct HistoryItemView: View {
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                if let card = event.card {
-                    HStack {
-                        Text(event.description)
-                            .font(.caption)
-                            .foregroundColor(card.color)
-                        CopyButton(card: card)
-                    }
-                } else {
+            if let card = event.card {
+                CardView(card: card)
+                Spacer()
+                VStack(alignment: .leading, spacing: 4) {
                     Text(event.description)
                         .font(.caption)
-                }
-
-                HStack {
+                        .foregroundColor(card.color)
                     if event.eventType == .draw {
                         Text("\(event.remainingCards) cards remaining")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
-                    Spacer()
                     Text(event.formattedTime)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
+                Spacer()
+                CopyButton(card: card)
+
             }
         }
         .padding(8)
@@ -294,6 +300,13 @@ struct ContentView: View {
 
             if let currentDraw = currentDraw {
                 CardResultView(card: currentDraw.card, remainingCards: deck.remainingCards)
+            } else {
+                VStack {
+                    Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) cards")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
             }
 
             if historyEnabled && !drawHistory.isEmpty {
