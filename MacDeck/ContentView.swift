@@ -160,17 +160,27 @@ struct CardResultView: View {
     var body: some View {
         HStack {
             if let card = card {
-                Spacer()
-                HStack(spacing: 2) {
-                    Text(card.rank.first.map { String($0) } ?? "")
-                        .font(.title)
-                        .fontWeight(.bold)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(.background)
+                        .shadow(radius: 1)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(.secondary.opacity(0.3), lineWidth: 0.5)
+
+                    VStack(spacing: 0) {
+                        Text(card.rank.first.map { String($0) } ?? "")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(card.color)
+                        card.suitImage
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(card.color)
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundColor(card.color)
-                    card.suitImage
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(card.color)
+                    }
+                    .padding(2)
                 }
+                .frame(width: 20, height: 32)
                 Spacer()
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -182,6 +192,7 @@ struct CardResultView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                Spacer()
             }
         }
     }
