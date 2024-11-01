@@ -239,6 +239,7 @@ struct ContentView: View {
     @AppStorage("deckCount") private var deckCount = 1
     @AppStorage("historyEnabled") private var historyEnabled = true
     @AppStorage("copyWithSymbol") private var copyWithSymbol = false
+    @AppStorage("clearHistoryOnShuffle") private var clearHistoryOnShuffle = false
     @State private var deck: Deck
     @State private var currentDraw: DrawEvent?
     @State private var drawHistory: [DrawEvent] = []
@@ -276,6 +277,7 @@ struct ContentView: View {
                             shuffleDeck()
                         }
                     Toggle("Enable History", isOn: $historyEnabled)
+                    Toggle("Clear History on Shuffle", isOn: $clearHistoryOnShuffle)
                     Toggle("Copy as Symbol", isOn: $copyWithSymbol)
                     Divider()
                     Button("Quit", action: {
@@ -358,9 +360,13 @@ struct ContentView: View {
         currentDraw = nil
 
         if historyEnabled {
-            drawHistory.insert(event, at: 0)
-            if drawHistory.count > 50 {
-                drawHistory.removeLast()
+            if clearHistoryOnShuffle {
+                drawHistory = []
+            } else {
+                drawHistory.insert(event, at: 0)
+                if drawHistory.count > 50 {
+                    drawHistory.removeLast()
+                }
             }
         }
     }
