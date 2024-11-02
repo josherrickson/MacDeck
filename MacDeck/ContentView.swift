@@ -221,6 +221,15 @@ struct CardResultView: View {
     }
 }
 
+
+#Preview("CardResultView") {
+    let sampleCard = Card(rank: "King", suit: "Hearts")
+
+    return CardResultView(card: sampleCard, remainingCards: 48)
+        .padding()
+}
+
+
 struct HistoryItemView: View {
     let event: DrawEvent
 
@@ -230,7 +239,7 @@ struct HistoryItemView: View {
                 CardView(card: card)
                 Spacer()
                 HStack {
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
                         Text(event.description)
                             .font(.caption)
@@ -242,13 +251,13 @@ struct HistoryItemView: View {
                         }
                     }
                     Spacer()
-                    Text(event.formattedTime)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(event.formattedTime)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        CopyButton(card: card)
+                    }
                 }
-                Spacer()
-                CopyButton(card: card)
-
             }
         }
         .padding(8)
@@ -257,18 +266,18 @@ struct HistoryItemView: View {
     }
 }
 
-//#Preview {
-//    let sampleCard = Card(rank: "King", suit: "Hearts")
-//    let sampleEvent = DrawEvent(
-//        card: sampleCard,
-//        eventType: .draw,
-//        deckCount: 1,
-//        remainingCards: 51
-//    )
-//
-//    return HistoryItemView(event: sampleEvent)
-//        .padding()
-//}
+#Preview("HistoryItemView") {
+    let sampleCard = Card(rank: "King", suit: "Hearts")
+    let sampleEvent = DrawEvent(
+        card: sampleCard,
+        eventType: .draw,
+        deckCount: 1,
+        remainingCards: 51
+    )
+
+    return HistoryItemView(event: sampleEvent)
+        .padding()
+}
 
 struct CopyHistoryView: View {
     var drawHistory: [DrawEvent]
