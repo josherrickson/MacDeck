@@ -7,6 +7,7 @@ struct Card: Identifiable, Equatable {
     let rank: String
     let suit: String
 
+
     var description: String {
         "\(rank) of \(suit)"
     }
@@ -45,12 +46,16 @@ struct Card: Identifiable, Equatable {
         }
     }
 
-    var color: Color {
+    func color(uniqueColors: Bool) -> Color {
         switch suit {
-        case "Hearts", "Diamonds":
+        case "Hearts":
             return .red
-        case "Spades", "Clubs":
+        case "Diamonds":
+            return uniqueColors ? .green : .red
+        case "Spades":
             return .primary
+        case "Clubs":
+            return uniqueColors ? .blue : .primary
         default:
             return .secondary
         }
@@ -157,6 +162,7 @@ struct CopyButton: View {
 
 struct CardView: View {
     let card: Card
+    @AppStorage("uniqueColors") private var uniqueColors = true
 
     var body: some View {
         ZStack {
@@ -170,12 +176,12 @@ struct CardView: View {
             VStack(spacing: 0) {
                 Text(card.rank.first.map { String($0) } ?? "")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(card.color)
+                    .foregroundColor(card.color(uniqueColors: uniqueColors))
                 card.suitImage
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(card.color)
+                    .foregroundColor(card.color(uniqueColors: uniqueColors))
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(card.color)
+                    .foregroundColor(card.color(uniqueColors: uniqueColors))
             }
             .padding(2)
         }
@@ -189,6 +195,8 @@ struct CardView: View {
 struct CardResultView: View {
     let card: Card?
     let remainingCards: Int
+    @AppStorage("uniqueColors") private var uniqueColors = true
+
 
     var body: some View {
         HStack {
@@ -201,7 +209,7 @@ struct CardResultView: View {
                         HStack {
                             Spacer()
                             Text(card.description)
-                                .foregroundColor(card.color)
+                                .foregroundColor(card.color(uniqueColors: uniqueColors))
                             Spacer()
                         }
                         HStack {
@@ -232,6 +240,7 @@ struct CardResultView: View {
 
 struct HistoryItemView: View {
     let event: DrawEvent
+    @AppStorage("uniqueColors") private var uniqueColors = true
 
     var body: some View {
         HStack {
@@ -243,7 +252,7 @@ struct HistoryItemView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(event.description)
                             .font(.caption)
-                            .foregroundColor(card.color)
+                            .foregroundColor(card.color(uniqueColors: uniqueColors))
                         if event.eventType == .draw {
                             Text("\(event.remainingCards) cards remaining")
                                 .font(.caption2)
@@ -305,6 +314,7 @@ struct ContentView: View {
     @AppStorage("historyEnabled") private var historyEnabled = true
     @AppStorage("copyWithSymbol") private var copyWithSymbol = false
     @AppStorage("clearHistoryOnShuffle") private var clearHistoryOnShuffle = false
+    @AppStorage("uniqueColors") private var uniqueColors = true
     @State private var deck: Deck
     @State private var currentDraw: DrawEvent?
     @State private var drawHistory: [DrawEvent] = []
@@ -341,6 +351,7 @@ struct ContentView: View {
                         .onChange(of: deckCount) { oldValue, newValue in
                             shuffleDeck()
                         }
+                    Toggle("Use unique colors for suits", isOn: $uniqueColors)
                     Toggle("Enable History", isOn: $historyEnabled)
                     Toggle("Clear History on Shuffle", isOn: $clearHistoryOnShuffle)
                         .disabled(!historyEnabled)
