@@ -51,11 +51,11 @@ struct Card: Identifiable, Equatable {
         case "Hearts":
             return .red
         case "Diamonds":
-            return uniqueColors ? .green : .red
+            return uniqueColors ? .blue : .red
         case "Spades":
             return .primary
         case "Clubs":
-            return uniqueColors ? .blue : .primary
+            return uniqueColors ? .green : .primary
         default:
             return .secondary
         }
