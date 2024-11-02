@@ -3,6 +3,8 @@
 A simple, privacy-respecting deck of cards that lives in your Mac menubar. Draw
 a card from the deck with a clean, native interface.
 
+<https://macmenuapps.com>
+
 ## Features
 
 - Access instantly from your menubar
