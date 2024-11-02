@@ -11,6 +11,10 @@ struct Card: Identifiable, Equatable {
         "\(rank) of \(suit)"
     }
 
+    var shortDescription: String {
+        "\(rank.first?.description ?? "")\(unicodeSuit)"
+    }
+
     var suitImage: Image {
         switch suit {
         case "Hearts":
@@ -125,7 +129,7 @@ struct CopyButton: View {
     @State private var isCopied = false
 
     var copyText: String {
-        copyWithSymbol ? "\(card.rank.first?.description ?? "")\(card.unicodeSuit)" : card.description
+        copyWithSymbol ? card.shortDescription : card.description
     }
 
     var body: some View {
@@ -241,6 +245,27 @@ struct HistoryItemView: View {
     }
 }
 
+struct CopyHistoryView: View {
+    var drawHistory: [DrawEvent]
+    @AppStorage("copyWithSymbol") private var copyWithSymbol = false
+
+    var body: some View {
+        Button(action: copyAllHistory) {
+            Text("Copy All History")
+        }
+    }
+
+    private func copyAllHistory() {
+        let historyText = drawHistory.compactMap { event in
+            guard let card = event.card else { return nil }
+            return copyWithSymbol ? card.shortDescription : card.description
+        }.reversed().joined(separator: "\n")
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(historyText, forType: .string)
+    }
+}
+
 struct ContentView: View {
     @AppStorage("deckCount") private var deckCount = 1
     @AppStorage("historyEnabled") private var historyEnabled = true
@@ -284,6 +309,8 @@ struct ContentView: View {
                         }
                     Toggle("Enable History", isOn: $historyEnabled)
                     Toggle("Clear History on Shuffle", isOn: $clearHistoryOnShuffle)
+                        .disabled(!historyEnabled)
+                        .opacity(historyEnabled ? 1.0 : 0.5)
                     Toggle("Copy as Symbol", isOn: $copyWithSymbol)
                     Divider()
                     Button("Quit", action: {
@@ -335,6 +362,7 @@ struct ContentView: View {
                         }
                     }
                     .frame(height: 300)
+                    CopyHistoryView(drawHistory: drawHistory)
                 }
             }
         }
