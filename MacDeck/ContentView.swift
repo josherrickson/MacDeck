@@ -229,15 +229,19 @@ struct HistoryItemView: View {
             if let card = event.card {
                 CardView(card: card)
                 Spacer()
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(event.description)
-                        .font(.caption)
-                        .foregroundColor(card.color)
-                    if event.eventType == .draw {
-                        Text("\(event.remainingCards) cards remaining")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                HStack {
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(event.description)
+                            .font(.caption)
+                            .foregroundColor(card.color)
+                        if event.eventType == .draw {
+                            Text("\(event.remainingCards) cards remaining")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
                     }
+                    Spacer()
                     Text(event.formattedTime)
                         .font(.caption2)
                         .foregroundColor(.secondary)
@@ -252,6 +256,19 @@ struct HistoryItemView: View {
         .cornerRadius(8)
     }
 }
+
+//#Preview {
+//    let sampleCard = Card(rank: "King", suit: "Hearts")
+//    let sampleEvent = DrawEvent(
+//        card: sampleCard,
+//        eventType: .draw,
+//        deckCount: 1,
+//        remainingCards: 51
+//    )
+//
+//    return HistoryItemView(event: sampleEvent)
+//        .padding()
+//}
 
 struct CopyHistoryView: View {
     var drawHistory: [DrawEvent]
