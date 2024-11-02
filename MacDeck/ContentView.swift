@@ -193,9 +193,9 @@ struct CardResultView: View {
     var body: some View {
         HStack {
             if let card = card {
-                CardView(card: card)
-                Spacer()
                 HStack {
+                    Spacer()
+                    CardView(card: card)
                     Spacer()
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
