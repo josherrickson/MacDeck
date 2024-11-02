@@ -198,11 +198,19 @@ struct CardResultView: View {
                 HStack {
                     Spacer()
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(card.description)
-                            .foregroundColor(card.color)
-                        Text("\(remainingCards) cards remaining")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        HStack {
+                            Spacer()
+                            Text(card.description)
+                                .foregroundColor(card.color)
+                            Spacer()
+                        }
+                        HStack {
+                            Spacer()
+                            Text("\(remainingCards) cards remaining")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
                     }
                     Spacer()
                     CopyButton(card: card)
