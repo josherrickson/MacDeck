@@ -2,6 +2,7 @@ import SwiftUI
 
 // MARK: - Models
 
+
 struct Card: Identifiable, Equatable {
     let id = UUID()
     let rank: String
@@ -49,15 +50,15 @@ struct Card: Identifiable, Equatable {
     func color(uniqueColors: Bool) -> Color {
         switch suit {
         case "Hearts":
-            return .red
+            return .suitRed
         case "Diamonds":
-            return uniqueColors ? .blue : .red
+            return uniqueColors ? .suitBlue : .suitRed
         case "Spades":
-            return .primary
+            return .suitBlack
         case "Clubs":
-            return uniqueColors ? .green : .primary
+            return uniqueColors ? .suitGreen : .suitBlack
         default:
-            return .secondary
+            return .suitBlack
         }
     }
 
@@ -209,7 +210,9 @@ struct CardResultView: View {
                         HStack {
                             Spacer()
                             Text(card.description)
+                                .bold()
                                 .foregroundColor(card.color(uniqueColors: uniqueColors))
+                            
                             Spacer()
                         }
                         HStack {
@@ -251,8 +254,7 @@ struct HistoryItemView: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(event.description)
-                            .font(.caption)
-                            .foregroundColor(card.color(uniqueColors: uniqueColors))
+                            .font(.system(.caption, weight: .bold)) .foregroundColor(card.color(uniqueColors: uniqueColors))
                         if event.eventType == .draw {
                             Text("\(event.remainingCards) cards remaining")
                                 .font(.caption2)
