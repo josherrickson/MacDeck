@@ -98,7 +98,7 @@ struct Deck {
     }
 }
 
-struct DrawEvent: Identifiable {
+struct DrawEvent: Identifiable, Hashable {
     let id = UUID()
     let timestamp = Date()
     let card: Card?
@@ -106,9 +106,18 @@ struct DrawEvent: Identifiable {
     let deckCount: Int
     let remainingCards: Int
 
-    enum EventType {
+    enum EventType: Hashable {
         case draw
         case shuffle
+    }
+
+    // Implementation of Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: DrawEvent, rhs: DrawEvent) -> Bool {
+        lhs.id == rhs.id
     }
 
     var description: String {
@@ -212,7 +221,7 @@ struct CardResultView: View {
                             Text(card.description)
                                 .bold()
                                 .foregroundColor(card.color(uniqueColors: uniqueColors))
-                            
+
                             Spacer()
                         }
                         HStack {
@@ -319,7 +328,8 @@ struct ContentView: View {
     @AppStorage("uniqueColors") private var uniqueColors = true
     @State private var deck: Deck
     @State private var currentDraw: DrawEvent?
-    @State private var drawHistory: [DrawEvent] = []
+    @State private var currentMultiDraw: MultiDrawEvent?
+    @State private var history: [AnyHashable] = [] // Can store both DrawEvent and MultiDrawEvent
     @State private var showHistory = false
 
     init() {
@@ -338,6 +348,14 @@ struct ContentView: View {
                     }
                 }
                 .disabled(deck.remainingCards == 0)
+
+                Button(action: drawFiveCards) {
+                    HStack {
+                        Image(systemName: "square.stack.3d.up")
+                        Text("Draw 5")
+                    }
+                }
+                .disabled(deck.remainingCards < 5)
 
                 Button(action: shuffleDeck) {
                     HStack {
@@ -372,18 +390,23 @@ struct ContentView: View {
                 .fixedSize()
             }
 
-            if let currentDraw = currentDraw {
-                CardResultView(card: currentDraw.card, remainingCards: deck.remainingCards)
-            } else {
-                VStack {
-                    Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) cards")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            // Current draw result
+            Group {
+                if let multiDraw = currentMultiDraw {
+                    MultiCardResultView(cards: multiDraw.cards, remainingCards: deck.remainingCards)
+                } else if let currentDraw = currentDraw {
+                    CardResultView(card: currentDraw.card, remainingCards: deck.remainingCards)
+                } else {
+                    VStack {
+                        Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) cards")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
-
             }
 
-            if historyEnabled && !drawHistory.isEmpty {
+            // History section
+            if historyEnabled && !history.isEmpty {
                 Divider()
 
                 Button {
@@ -403,13 +426,24 @@ struct ContentView: View {
                 if showHistory {
                     ScrollView {
                         VStack(spacing: 8) {
-                            ForEach(drawHistory) { event in
-                                HistoryItemView(event: event)
+                            ForEach(history, id: \.self) { event in
+                                Group {
+                                    if let drawEvent = event as? DrawEvent {
+                                        HistoryItemView(event: drawEvent)
+                                    } else if let multiDrawEvent = event as? MultiDrawEvent {
+                                        MultiHistoryItemView(event: multiDrawEvent)
+                                    }
+                                }
                             }
                         }
                     }
                     .frame(height: 300)
-                    CopyHistoryView(drawHistory: drawHistory)
+
+                    if !history.isEmpty {
+                        Button("Copy All History") {
+                            copyAllHistory()
+                        }
+                    }
                 }
             }
         }
@@ -417,9 +451,8 @@ struct ContentView: View {
         .frame(width: 250)
     }
 
-
-
     private func drawCard() {
+        currentMultiDraw = nil // Clear any multi-draw result
         let card = deck.draw()
         let event = DrawEvent(
             card: card,
@@ -430,33 +463,68 @@ struct ContentView: View {
         currentDraw = event
 
         if historyEnabled {
-            drawHistory.insert(event, at: 0)
-            if drawHistory.count > 50 {
-                drawHistory.removeLast()
+            history.insert(event, at: 0)
+            if history.count > 50 {
+                history.removeLast()
+            }
+        }
+    }
+
+    private func drawFiveCards() {
+        currentDraw = nil // Clear any single-draw result
+        if let cards = deck.drawCards(count: 5) {
+            let event = MultiDrawEvent(
+                cards: cards,
+                eventType: .draw,
+                deckCount: deckCount,
+                remainingCards: deck.remainingCards
+            )
+            currentMultiDraw = event
+
+            if historyEnabled {
+                history.insert(event, at: 0)
+                if history.count > 50 {
+                    history.removeLast()
+                }
             }
         }
     }
 
     private func shuffleDeck() {
         deck = Deck(numberOfDecks: deckCount)
-        let event = DrawEvent(
-            card: nil,
-            eventType: .shuffle,
-            deckCount: deckCount,
-            remainingCards: deck.remainingCards
-        )
         currentDraw = nil
+        currentMultiDraw = nil
 
         if historyEnabled {
             if clearHistoryOnShuffle {
-                drawHistory = []
+                history = []
             } else {
-                drawHistory.insert(event, at: 0)
-                if drawHistory.count > 50 {
-                    drawHistory.removeLast()
+                let event = DrawEvent(
+                    card: nil,
+                    eventType: .shuffle,
+                    deckCount: deckCount,
+                    remainingCards: deck.remainingCards
+                )
+                history.insert(event, at: 0)
+                if history.count > 50 {
+                    history.removeLast()
                 }
             }
         }
     }
-}
 
+    private func copyAllHistory() {
+        let historyText = history.compactMap { event -> String? in
+            if let drawEvent = event as? DrawEvent {
+                guard let card = drawEvent.card else { return nil }
+                return copyWithSymbol ? card.shortDescription : card.description
+            } else if let multiDrawEvent = event as? MultiDrawEvent {
+                return copyWithSymbol ? multiDrawEvent.shortDescription : multiDrawEvent.description
+            }
+            return nil
+        }.joined(separator: "\n")
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(historyText, forType: .string)
+    }
+}
