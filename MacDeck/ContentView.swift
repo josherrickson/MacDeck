@@ -343,6 +343,10 @@ struct DeckControlsView: View {
                     Text("Draw \(selectedDrawCount)")
                         .padding(.horizontal)
                 }
+                .buttonStyle(.borderedProminent)  // or .bordered depending on your design
+                .frame(width: 100)
+                .controlSize(.regular)  // Can be .mini, .small, .regular, or .large
+                .padding(.horizontal, 4)
 
                 Menu {
                     ForEach([1, 2, 3, 4, 5, 6, 7], id: \.self) { count in
@@ -357,6 +361,8 @@ struct DeckControlsView: View {
                 .fixedSize()
             }
 
+
+            Spacer()    
 
             // Shuffle button
             Button(action: shuffleAction) {
@@ -451,6 +457,7 @@ struct ContentView: View {
                 drawAction: drawCards,
                 shuffleAction: shuffleDeck
             )
+
 
 
             // Current draw result
