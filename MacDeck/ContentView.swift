@@ -320,16 +320,117 @@ struct CopyHistoryView: View {
     }
 }
 
+struct DeckControlsView: View {
+    @Binding var selectedDrawCount: Int
+    @Binding var deckCount: Int
+    @Binding var uniqueColors: Bool
+    @Binding var historyEnabled: Bool
+    @Binding var clearHistoryOnShuffle: Bool
+    @Binding var copyWithSymbol: Bool
+
+
+    let drawAction: () -> Void
+    let shuffleAction: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Draw controls
+
+            HStack(spacing: 0) {
+                Button(action: {
+                    drawAction()
+                }) {
+                    Text("Draw \(selectedDrawCount)")
+                        .padding(.horizontal)
+                }
+
+                Menu {
+                    ForEach([1, 2, 3, 4, 5, 6, 7], id: \.self) { count in
+                        Button("Draw \(count)") {
+                            selectedDrawCount = count
+                        }
+                    }
+                } label: {
+                    Text("#")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+            }
+
+
+            // Shuffle button
+            Button(action: shuffleAction) {
+                Text("Shuffle")
+//                Image(systemName: "shuffle")
+            }
+            .buttonStyle(.bordered)
+
+
+            // Settings menu
+            Menu {
+                Group {
+                    Picker("Number of Decks", selection: $deckCount) {
+                        ForEach(1...8, id: \.self) { count in
+                            Text("\(count)").tag(count)
+                        }
+                    }
+                    Toggle("Unique Suit Colors", isOn: $uniqueColors)
+                }
+
+                Divider()
+
+                Group {
+                    Toggle("Keep History", isOn: $historyEnabled)
+                    if historyEnabled {
+                        Toggle("Clear on Shuffle", isOn: $clearHistoryOnShuffle)
+                    }
+                    Toggle("Use Symbols", isOn: $copyWithSymbol)
+                }
+
+                Divider()
+
+                Button("Quit") {
+                    NSApplication.shared.terminate(nil)
+                }
+            } label: {
+                Image(systemName: "gear")
+                    .foregroundColor(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+        }
+    }
+}
+
+#Preview("DeckControlsView") {
+    DeckControlsView(
+        selectedDrawCount: .constant(1),
+        deckCount: .constant(1),
+        uniqueColors: .constant(true),
+        historyEnabled: .constant(true),
+        clearHistoryOnShuffle: .constant(false),
+        copyWithSymbol: .constant(false),
+        drawAction: {},
+        shuffleAction: {}
+    )
+    .padding()
+    .frame(width: 250)
+}
+
+
 struct ContentView: View {
     @AppStorage("deckCount") private var deckCount = 1
     @AppStorage("historyEnabled") private var historyEnabled = true
     @AppStorage("copyWithSymbol") private var copyWithSymbol = false
     @AppStorage("clearHistoryOnShuffle") private var clearHistoryOnShuffle = false
     @AppStorage("uniqueColors") private var uniqueColors = true
+    @AppStorage("selectedDrawCount") private var selectedDrawCount = 1
+
     @State private var deck: Deck
     @State private var currentDraw: DrawEvent?
     @State private var currentMultiDraw: MultiDrawEvent?
-    @State private var history: [AnyHashable] = [] // Can store both DrawEvent and MultiDrawEvent
+    @State private var history: [AnyHashable] = []
     @State private var showHistory = false
 
     init() {
@@ -339,56 +440,18 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            // Main controls
-            HStack(spacing: 8) {
-                Button(action: drawCard) {
-                    HStack {
-                        Image(systemName: "rectangle.stack")
-                        Text("Draw")
-                    }
-                }
-                .disabled(deck.remainingCards == 0)
+            // New Controls Layout
+            DeckControlsView(
+                selectedDrawCount: $selectedDrawCount,
+                deckCount: $deckCount,
+                uniqueColors: $uniqueColors,
+                historyEnabled: $historyEnabled,
+                clearHistoryOnShuffle: $clearHistoryOnShuffle,
+                copyWithSymbol: $copyWithSymbol,
+                drawAction: drawCards,
+                shuffleAction: shuffleDeck
+            )
 
-                Button(action: drawFiveCards) {
-                    HStack {
-                        Image(systemName: "square.stack.3d.up")
-                        Text("Draw 5")
-                    }
-                }
-                .disabled(deck.remainingCards < 5)
-
-                Button(action: shuffleDeck) {
-                    HStack {
-                        Image(systemName: "shuffle")
-                        Text("Shuffle")
-                    }
-                }
-
-                Spacer()
-
-                Menu {
-                    Stepper("Number of Decks: \(deckCount)", value: $deckCount, in: 1...8)
-                        .onChange(of: deckCount) { oldValue, newValue in
-                            shuffleDeck()
-                        }
-                    Toggle("Use unique colors for suits", isOn: $uniqueColors)
-                    Toggle("Enable History", isOn: $historyEnabled)
-                    Toggle("Clear History on Shuffle", isOn: $clearHistoryOnShuffle)
-                        .disabled(!historyEnabled)
-                        .opacity(historyEnabled ? 1.0 : 0.5)
-                    Toggle("Copy as Symbol", isOn: $copyWithSymbol)
-                    Divider()
-                    Button("Quit", action: {
-                        NSApplication.shared.terminate(nil)
-                    })
-                } label: {
-                    Image(systemName: "gear")
-                        .foregroundColor(.secondary)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-            }
 
             // Current draw result
             Group {
@@ -398,7 +461,7 @@ struct ContentView: View {
                     CardResultView(card: currentDraw.card, remainingCards: deck.remainingCards)
                 } else {
                     VStack {
-                        Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) cards")
+                        Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) remaining")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -448,31 +511,28 @@ struct ContentView: View {
             }
         }
         .padding()
-        .frame(width: 250)
+        .frame(width: 300)
     }
 
-    private func drawCard() {
-        currentMultiDraw = nil // Clear any multi-draw result
-        let card = deck.draw()
-        let event = DrawEvent(
-            card: card,
-            eventType: .draw,
-            deckCount: deckCount,
-            remainingCards: deck.remainingCards
-        )
-        currentDraw = event
+    // Updated draw function to handle variable card counts
+    private func drawCards() {
+        currentDraw = nil
+        currentMultiDraw = nil
 
-        if historyEnabled {
-            history.insert(event, at: 0)
-            if history.count > 50 {
-                history.removeLast()
+        if selectedDrawCount == 1 {
+            let card = deck.draw()
+            let event = DrawEvent(
+                card: card,
+                eventType: .draw,
+                deckCount: deckCount,
+                remainingCards: deck.remainingCards
+            )
+            currentDraw = event
+
+            if historyEnabled {
+                history.insert(event, at: 0)
             }
-        }
-    }
-
-    private func drawFiveCards() {
-        currentDraw = nil // Clear any single-draw result
-        if let cards = deck.drawCards(count: 5) {
+        } else if let cards = deck.drawCards(count: selectedDrawCount) {
             let event = MultiDrawEvent(
                 cards: cards,
                 eventType: .draw,
@@ -483,10 +543,12 @@ struct ContentView: View {
 
             if historyEnabled {
                 history.insert(event, at: 0)
-                if history.count > 50 {
-                    history.removeLast()
-                }
             }
+        }
+
+        // Trim history if needed
+        if history.count > 50 {
+            history.removeLast()
         }
     }
 
