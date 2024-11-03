@@ -327,6 +327,7 @@ struct DeckControlsView: View {
     @Binding var historyEnabled: Bool
     @Binding var clearHistoryOnShuffle: Bool
     @Binding var copyWithSymbol: Bool
+    var remainingCards: Int
 
 
     let drawAction: () -> Void
@@ -347,6 +348,7 @@ struct DeckControlsView: View {
                 .frame(width: 100)
                 .controlSize(.regular)  // Can be .mini, .small, .regular, or .large
                 .padding(.horizontal, 4)
+                .disabled(remainingCards < selectedDrawCount)
 
                 Menu {
                     ForEach([1, 2, 3, 4, 5, 6, 7], id: \.self) { count in
@@ -362,7 +364,7 @@ struct DeckControlsView: View {
             }
 
 
-            Spacer()    
+            Spacer()
 
             // Shuffle button
             Button(action: shuffleAction) {
@@ -417,6 +419,7 @@ struct DeckControlsView: View {
         historyEnabled: .constant(true),
         clearHistoryOnShuffle: .constant(false),
         copyWithSymbol: .constant(false),
+        remainingCards: 40,
         drawAction: {},
         shuffleAction: {}
     )
@@ -454,6 +457,7 @@ struct ContentView: View {
                 historyEnabled: $historyEnabled,
                 clearHistoryOnShuffle: $clearHistoryOnShuffle,
                 copyWithSymbol: $copyWithSymbol,
+                remainingCards: deck.remainingCards,
                 drawAction: drawCards,
                 shuffleAction: shuffleDeck
             )
