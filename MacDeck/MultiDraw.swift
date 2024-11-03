@@ -25,7 +25,7 @@ struct MultiDrawEvent: Identifiable, Hashable {
     var description: String {
         switch eventType {
         case .draw:
-            return "\(cards.count) cards: " + cards.map { $0.description }.joined(separator: ", ")
+            return cards.map { $0.description }.joined(separator: ", ")
         case .shuffle:
             return "Deck shuffled (\(deckCount) deck\(deckCount > 1 ? "s" : ""))"
         }
