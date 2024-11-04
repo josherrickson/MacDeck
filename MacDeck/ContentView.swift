@@ -92,6 +92,19 @@ struct Deck {
         guard !cards.isEmpty else { return nil }
         return cards.removeLast()
     }
+    
+    mutating func drawCards(count: Int) -> [Card]? {
+        guard count <= remainingCards else { return nil }
+
+        var drawnCards: [Card] = []
+        for _ in 0..<count {
+            if let card = draw() {
+                drawnCards.append(card)
+            }
+        }
+        return drawnCards
+    }
+
 
     var remainingCards: Int {
         cards.count
@@ -128,6 +141,8 @@ struct DrawEvent: Identifiable, Hashable {
             return "Deck shuffled (\(deckCount) deck\(deckCount > 1 ? "s" : ""))"
         }
     }
+
+    
 
     var formattedTime: String {
         timestamp.formatted(date: .omitted, time: .shortened)
@@ -184,9 +199,15 @@ struct CardView: View {
                 .strokeBorder(.secondary.opacity(0.3), lineWidth: 0.5)
 
             VStack(spacing: 0) {
-                Text(card.rank.first.map { String($0) } ?? "")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(card.color(uniqueColors: uniqueColors))
+                Group {
+                    if card.rank == "10" {
+                        Text(card.rank)
+                    } else {
+                        Text(card.rank.first.map { String($0) } ?? "")
+                    }
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(card.color(uniqueColors: uniqueColors))
                 card.suitImage
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(card.color(uniqueColors: uniqueColors))
@@ -202,15 +223,25 @@ struct CardView: View {
 
 
 
+
 struct CardResultView: View {
-    let card: Card?
+    let cards: [Card]
     let remainingCards: Int
     @AppStorage("uniqueColors") private var uniqueColors = true
+    @AppStorage("copyWithSymbol") private var copyWithSymbol = false
+    @State private var isCopied = false
 
+    private var copyText: String {
+        if copyWithSymbol {
+            return cards.map { $0.shortDescription }.joined(separator: " ")
+        } else {
+            return cards.map { $0.description }.joined(separator: ", ")
+        }
+    }
 
     var body: some View {
-        HStack {
-            if let card = card {
+        HStack(spacing: 8) {
+            if cards.count == 1, let card = cards.first {
                 HStack {
                     Spacer()
                     CardView(card: card)
@@ -221,32 +252,82 @@ struct CardResultView: View {
                             Text(card.description)
                                 .bold()
                                 .foregroundColor(card.color(uniqueColors: uniqueColors))
-
-                            Spacer()
-                        }
-                        HStack {
-                            Spacer()
-                            Text("\(remainingCards) cards remaining")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
                             Spacer()
                         }
                     }
                     Spacer()
-                    CopyButton(card: card)
                 }
-                Spacer()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        Spacer()
+                        ForEach(cards) { card in
+                            CardView(card: card)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 4)
+                }
+            }
+            
+            VStack(alignment: .trailing, spacing: 8) {
+                Text("\(remainingCards) cards remain")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.trailing)
+
+
+
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(copyText, forType: .string)
+
+                    withAnimation {
+                        isCopied = true
+                    }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        withAnimation {
+                            isCopied = false
+                        }
+                    }
+                } label: {
+                    Image(systemName: isCopied ? "checkmark.circle.fill" : "doc.on.doc")
+                        .foregroundColor(isCopied ? .green : .secondary)
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
 }
 
 
-#Preview("CardResultView") {
-    let sampleCard = Card(rank: "King", suit: "Hearts")
+#Preview("Single CardResultView") {
+    let sampleCards = [
+        Card(rank: "King", suit: "Hearts")
+    ]
 
-    return CardResultView(card: sampleCard, remainingCards: 48)
+    return CardResultView(cards: sampleCards, remainingCards: 47)
         .padding()
+        .frame(width: 250)
+
+}
+
+
+#Preview("Multiple CardResultView") {
+    let sampleCards = [
+        Card(rank: "King", suit: "Hearts"),
+        Card(rank: "Queen", suit: "Diamonds"),
+        Card(rank: "Jack", suit: "Spades"),
+        Card(rank: "10", suit: "Clubs"),
+        Card(rank: "Ace", suit: "Hearts")
+    ]
+
+    return CardResultView(cards: sampleCards, remainingCards: 47)
+        .padding()
+        .frame(width: 250)
+
 }
 
 
@@ -467,9 +548,9 @@ struct ContentView: View {
             // Current draw result
             Group {
                 if let multiDraw = currentMultiDraw {
-                    MultiCardResultView(cards: multiDraw.cards, remainingCards: deck.remainingCards)
-                } else if let currentDraw = currentDraw {
-                    CardResultView(card: currentDraw.card, remainingCards: deck.remainingCards)
+                    CardResultView(cards: multiDraw.cards, remainingCards: deck.remainingCards)
+                } else if let currentDraw = currentDraw, let card = currentDraw.card {
+                    CardResultView(cards: [card], remainingCards: deck.remainingCards)
                 } else {
                     VStack {
                         Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) remaining")
