@@ -114,7 +114,7 @@ struct Deck {
 struct DrawEvent: Identifiable, Hashable {
     let id = UUID()
     let timestamp = Date()
-    let card: Card?
+    let cards: [Card]?
     let eventType: EventType
     let deckCount: Int
     let remainingCards: Int
@@ -136,13 +136,25 @@ struct DrawEvent: Identifiable, Hashable {
     var description: String {
         switch eventType {
         case .draw:
-            return card?.description ?? "No cards remaining"
+            return cards?.map { $0.description }.joined(separator: ", ") ?? "No cards remaining"
         case .shuffle:
             return "Deck shuffled (\(deckCount) deck\(deckCount > 1 ? "s" : ""))"
         }
     }
 
-    
+    var shortDescription: String {
+        switch eventType {
+        case .draw:
+            if let cards = cards, !cards.isEmpty {
+                return cards.map { $0.shortDescription }.joined(separator: " ")
+            } else {
+                return "No cards remaining"
+            }
+        case .shuffle:
+            return "Shuffled"
+        }
+    }
+
 
     var formattedTime: String {
         timestamp.formatted(date: .omitted, time: .shortened)
@@ -271,7 +283,7 @@ struct CardResultView: View {
             }
             
             VStack(alignment: .trailing, spacing: 8) {
-                Text("\(remainingCards) cards remain")
+                Text("\(remainingCards) cards left")
                     .font(.footnote)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.trailing)
@@ -334,32 +346,91 @@ struct CardResultView: View {
 struct HistoryItemView: View {
     let event: DrawEvent
     @AppStorage("uniqueColors") private var uniqueColors = true
+    @AppStorage("copyWithSymbol") private var copyWithSymbol = false
+    @State private var isCopied = false
+
+    private var copyText: String {
+        if copyWithSymbol {
+            return event.shortDescription
+        } else {
+            return event.description
+        }
+    }
 
     var body: some View {
-        HStack {
-            if let card = event.card {
-                CardView(card: card)
-                Spacer()
-                HStack {
-
-                    VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                // Cards section
+                if let cards = event.cards {
+                    if cards.count == 1, let firstCard = cards.first {
+                        // Single card case
+                        CardView(card: firstCard)
                         Text(event.description)
-                            .font(.system(.caption, weight: .bold)) .foregroundColor(card.color(uniqueColors: uniqueColors))
-                        if event.eventType == .draw {
-                            Text("\(event.remainingCards) cards remaining")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                            .font(.system(.caption, weight: .bold))
+                            .foregroundColor(firstCard.color(uniqueColors: uniqueColors))
+                        Spacer()
+                    } else {
+                        // Multiple cards case
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 4) {
+                                ForEach(cards) { card in
+                                    CardView(card: card)
+                                }
+                            }
                         }
                     }
+                } else {
+                    VStack {
+                        Text(event.description)
+                            .font(.system(.caption, weight: .bold))
+                        Text("\(event.remainingCards) cards left")
+                            .font(.caption)
+                    }
                     Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
+
+                }
+
+                // Timestamp and copy button section
+                VStack(alignment: .trailing, spacing: 4) {
+                    if event.eventType == .draw {
+                        Text("\(event.remainingCards) cards left")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+
+                    HStack {
                         Text(event.formattedTime)
                             .font(.caption2)
                             .foregroundColor(.secondary)
-                        CopyButton(card: card)
+
+                        if event.eventType == .draw {
+                            Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(copyText, forType: .string)
+
+                                withAnimation {
+                                    isCopied = true
+                                }
+
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    withAnimation {
+                                        isCopied = false
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: isCopied ? "checkmark.circle.fill" : "doc.on.doc")
+                                    .foregroundColor(isCopied ? .green : .secondary)
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    if event.eventType == .shuffle {
+                        Spacer()
                     }
                 }
             }
+
         }
         .padding(8)
         .background(Color.gray.opacity(0.1))
@@ -367,10 +438,9 @@ struct HistoryItemView: View {
     }
 }
 
-#Preview("HistoryItemView") {
-    let sampleCard = Card(rank: "King", suit: "Hearts")
+#Preview("HistoryItemView - Single Card") {
     let sampleEvent = DrawEvent(
-        card: sampleCard,
+        cards: [Card(rank: "King", suit: "Hearts")],
         eventType: .draw,
         deckCount: 1,
         remainingCards: 51
@@ -378,6 +448,38 @@ struct HistoryItemView: View {
 
     return HistoryItemView(event: sampleEvent)
         .padding()
+        .frame(width: 300)
+}
+
+#Preview("HistoryItemView - Multiple Cards") {
+    let sampleCards = [
+        Card(rank: "King", suit: "Hearts"),
+        Card(rank: "Queen", suit: "Diamonds"),
+        Card(rank: "Jack", suit: "Spades")
+    ]
+    let sampleEvent = DrawEvent(
+        cards: sampleCards,
+        eventType: .draw,
+        deckCount: 1,
+        remainingCards: 49
+    )
+
+    return HistoryItemView(event: sampleEvent)
+        .padding()
+        .frame(width: 300)
+}
+
+#Preview("HistoryItemView - Shuffle") {
+    let sampleEvent = DrawEvent(
+        cards: nil,
+        eventType: .shuffle,
+        deckCount: 2,
+        remainingCards: 104
+    )
+
+    return HistoryItemView(event: sampleEvent)
+        .padding()
+        .frame(width: 300)
 }
 
 struct CopyHistoryView: View {
@@ -392,8 +494,8 @@ struct CopyHistoryView: View {
 
     private func copyAllHistory() {
         let historyText = drawHistory.compactMap { event in
-            guard let card = event.card else { return nil }
-            return copyWithSymbol ? card.shortDescription : card.description
+            guard let cards = event.cards, let firstCard = cards.first else { return nil }
+            return copyWithSymbol ? firstCard.shortDescription : firstCard.description
         }.reversed().joined(separator: "\n")
 
         NSPasteboard.general.clearContents()
@@ -519,7 +621,6 @@ struct ContentView: View {
 
     @State private var deck: Deck
     @State private var currentDraw: DrawEvent?
-    @State private var currentMultiDraw: MultiDrawEvent?
     @State private var history: [AnyHashable] = []
     @State private var showHistory = false
 
@@ -547,13 +648,11 @@ struct ContentView: View {
 
             // Current draw result
             Group {
-                if let multiDraw = currentMultiDraw {
-                    CardResultView(cards: multiDraw.cards, remainingCards: deck.remainingCards)
-                } else if let currentDraw = currentDraw, let card = currentDraw.card {
-                    CardResultView(cards: [card], remainingCards: deck.remainingCards)
+                if let currentDraw = currentDraw, let cards = currentDraw.cards {
+                    CardResultView(cards: cards, remainingCards: deck.remainingCards)
                 } else {
                     VStack {
-                        Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) remaining")
+                        Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) cards")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -582,12 +681,8 @@ struct ContentView: View {
                     ScrollView {
                         VStack(spacing: 8) {
                             ForEach(history, id: \.self) { event in
-                                Group {
-                                    if let drawEvent = event as? DrawEvent {
-                                        HistoryItemView(event: drawEvent)
-                                    } else if let multiDrawEvent = event as? MultiDrawEvent {
-                                        MultiHistoryItemView(event: multiDrawEvent)
-                                    }
+                                if let drawEvent = event as? DrawEvent {
+                                    HistoryItemView(event: drawEvent)
                                 }
                             }
                         }
@@ -609,29 +704,15 @@ struct ContentView: View {
     // Updated draw function to handle variable card counts
     private func drawCards() {
         currentDraw = nil
-        currentMultiDraw = nil
 
-        if selectedDrawCount == 1 {
-            let card = deck.draw()
+        if let cards = deck.drawCards(count: selectedDrawCount) {
             let event = DrawEvent(
-                card: card,
-                eventType: .draw,
-                deckCount: deckCount,
-                remainingCards: deck.remainingCards
-            )
-            currentDraw = event
-
-            if historyEnabled {
-                history.insert(event, at: 0)
-            }
-        } else if let cards = deck.drawCards(count: selectedDrawCount) {
-            let event = MultiDrawEvent(
                 cards: cards,
                 eventType: .draw,
                 deckCount: deckCount,
                 remainingCards: deck.remainingCards
             )
-            currentMultiDraw = event
+            currentDraw = event
 
             if historyEnabled {
                 history.insert(event, at: 0)
@@ -647,14 +728,13 @@ struct ContentView: View {
     private func shuffleDeck() {
         deck = Deck(numberOfDecks: deckCount)
         currentDraw = nil
-        currentMultiDraw = nil
 
         if historyEnabled {
             if clearHistoryOnShuffle {
                 history = []
             } else {
                 let event = DrawEvent(
-                    card: nil,
+                    cards: nil,
                     eventType: .shuffle,
                     deckCount: deckCount,
                     remainingCards: deck.remainingCards
@@ -670,10 +750,8 @@ struct ContentView: View {
     private func copyAllHistory() {
         let historyText = history.compactMap { event -> String? in
             if let drawEvent = event as? DrawEvent {
-                guard let card = drawEvent.card else { return nil }
-                return copyWithSymbol ? card.shortDescription : card.description
-            } else if let multiDrawEvent = event as? MultiDrawEvent {
-                return copyWithSymbol ? multiDrawEvent.shortDescription : multiDrawEvent.description
+                guard let cards = drawEvent.cards, let firstCard = cards.first else { return nil }
+                return copyWithSymbol ? firstCard.shortDescription : firstCard.description
             }
             return nil
         }.joined(separator: "\n")
