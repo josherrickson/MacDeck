@@ -92,33 +92,69 @@ struct Deck {
         guard !cards.isEmpty else { return nil }
         return cards.removeLast()
     }
+    
+    mutating func drawCards(count: Int) -> [Card]? {
+        guard count <= remainingCards else { return nil }
+
+        var drawnCards: [Card] = []
+        for _ in 0..<count {
+            if let card = draw() {
+                drawnCards.append(card)
+            }
+        }
+        return drawnCards
+    }
+
 
     var remainingCards: Int {
         cards.count
     }
 }
 
-struct DrawEvent: Identifiable {
+struct DrawEvent: Identifiable, Hashable {
     let id = UUID()
     let timestamp = Date()
-    let card: Card?
+    let cards: [Card]?
     let eventType: EventType
     let deckCount: Int
     let remainingCards: Int
 
-    enum EventType {
+    enum EventType: Hashable {
         case draw
         case shuffle
+    }
+
+    // Implementation of Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: DrawEvent, rhs: DrawEvent) -> Bool {
+        lhs.id == rhs.id
     }
 
     var description: String {
         switch eventType {
         case .draw:
-            return card?.description ?? "No cards remaining"
+            return cards?.map { $0.description }.joined(separator: ", ") ?? "No cards remaining"
         case .shuffle:
             return "Deck shuffled (\(deckCount) deck\(deckCount > 1 ? "s" : ""))"
         }
     }
+
+    var shortDescription: String {
+        switch eventType {
+        case .draw:
+            if let cards = cards, !cards.isEmpty {
+                return cards.map { $0.shortDescription }.joined(separator: " ")
+            } else {
+                return "No cards remaining"
+            }
+        case .shuffle:
+            return "Shuffled"
+        }
+    }
+
 
     var formattedTime: String {
         timestamp.formatted(date: .omitted, time: .shortened)
@@ -175,9 +211,15 @@ struct CardView: View {
                 .strokeBorder(.secondary.opacity(0.3), lineWidth: 0.5)
 
             VStack(spacing: 0) {
-                Text(card.rank.first.map { String($0) } ?? "")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(card.color(uniqueColors: uniqueColors))
+                Group {
+                    if card.rank == "10" {
+                        Text(card.rank)
+                    } else {
+                        Text(card.rank.first.map { String($0) } ?? "")
+                    }
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(card.color(uniqueColors: uniqueColors))
                 card.suitImage
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(card.color(uniqueColors: uniqueColors))
@@ -193,15 +235,25 @@ struct CardView: View {
 
 
 
+
 struct CardResultView: View {
-    let card: Card?
+    let cards: [Card]
     let remainingCards: Int
     @AppStorage("uniqueColors") private var uniqueColors = true
+    @AppStorage("copyWithSymbol") private var copyWithSymbol = false
+    @State private var isCopied = false
 
+    private var copyText: String {
+        if copyWithSymbol {
+            return cards.map { $0.shortDescription }.joined(separator: " ")
+        } else {
+            return cards.map { $0.description }.joined(separator: ", ")
+        }
+    }
 
     var body: some View {
-        HStack {
-            if let card = card {
+        HStack(spacing: 8) {
+            if cards.count == 1, let card = cards.first {
                 HStack {
                     Spacer()
                     CardView(card: card)
@@ -212,64 +264,173 @@ struct CardResultView: View {
                             Text(card.description)
                                 .bold()
                                 .foregroundColor(card.color(uniqueColors: uniqueColors))
-                            
-                            Spacer()
-                        }
-                        HStack {
-                            Spacer()
-                            Text("\(remainingCards) cards remaining")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
                             Spacer()
                         }
                     }
                     Spacer()
-                    CopyButton(card: card)
                 }
-                Spacer()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        Spacer()
+                        ForEach(cards) { card in
+                            CardView(card: card)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 4)
+                }
+            }
+            
+            VStack(alignment: .trailing, spacing: 8) {
+                Text("\(remainingCards) cards left")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.trailing)
+
+
+
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(copyText, forType: .string)
+
+                    withAnimation {
+                        isCopied = true
+                    }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        withAnimation {
+                            isCopied = false
+                        }
+                    }
+                } label: {
+                    Image(systemName: isCopied ? "checkmark.circle.fill" : "doc.on.doc")
+                        .foregroundColor(isCopied ? .green : .secondary)
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
 }
 
 
-#Preview("CardResultView") {
-    let sampleCard = Card(rank: "King", suit: "Hearts")
+#Preview("Single CardResultView") {
+    let sampleCards = [
+        Card(rank: "King", suit: "Hearts")
+    ]
 
-    return CardResultView(card: sampleCard, remainingCards: 48)
+    return CardResultView(cards: sampleCards, remainingCards: 47)
         .padding()
+        .frame(width: 250)
+
+}
+
+
+#Preview("Multiple CardResultView") {
+    let sampleCards = [
+        Card(rank: "King", suit: "Hearts"),
+        Card(rank: "Queen", suit: "Diamonds"),
+        Card(rank: "Jack", suit: "Spades"),
+        Card(rank: "10", suit: "Clubs"),
+        Card(rank: "Ace", suit: "Hearts")
+    ]
+
+    return CardResultView(cards: sampleCards, remainingCards: 47)
+        .padding()
+        .frame(width: 250)
+
 }
 
 
 struct HistoryItemView: View {
     let event: DrawEvent
     @AppStorage("uniqueColors") private var uniqueColors = true
+    @AppStorage("copyWithSymbol") private var copyWithSymbol = false
+    @State private var isCopied = false
+
+    private var copyText: String {
+        if copyWithSymbol {
+            return event.shortDescription
+        } else {
+            return event.description
+        }
+    }
 
     var body: some View {
-        HStack {
-            if let card = event.card {
-                CardView(card: card)
-                Spacer()
-                HStack {
-
-                    VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                // Cards section
+                if let cards = event.cards {
+                    if cards.count == 1, let firstCard = cards.first {
+                        // Single card case
+                        CardView(card: firstCard)
                         Text(event.description)
-                            .font(.system(.caption, weight: .bold)) .foregroundColor(card.color(uniqueColors: uniqueColors))
-                        if event.eventType == .draw {
-                            Text("\(event.remainingCards) cards remaining")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                            .font(.system(.caption, weight: .bold))
+                            .foregroundColor(firstCard.color(uniqueColors: uniqueColors))
+                        Spacer()
+                    } else {
+                        // Multiple cards case
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 4) {
+                                ForEach(cards) { card in
+                                    CardView(card: card)
+                                }
+                            }
                         }
                     }
+                } else {
+                    VStack {
+                        Text(event.description)
+                            .font(.system(.caption, weight: .bold))
+                        Text("\(event.remainingCards) cards left")
+                            .font(.caption)
+                    }
                     Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
+
+                }
+
+                // Timestamp and copy button section
+                VStack(alignment: .trailing, spacing: 4) {
+                    if event.eventType == .draw {
+                        Text("\(event.remainingCards) cards left")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+
+                    HStack {
                         Text(event.formattedTime)
                             .font(.caption2)
                             .foregroundColor(.secondary)
-                        CopyButton(card: card)
+
+                        if event.eventType == .draw {
+                            Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(copyText, forType: .string)
+
+                                withAnimation {
+                                    isCopied = true
+                                }
+
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    withAnimation {
+                                        isCopied = false
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: isCopied ? "checkmark.circle.fill" : "doc.on.doc")
+                                    .foregroundColor(isCopied ? .green : .secondary)
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    if event.eventType == .shuffle {
+                        Spacer()
                     }
                 }
             }
+
         }
         .padding(8)
         .background(Color.gray.opacity(0.1))
@@ -277,10 +438,9 @@ struct HistoryItemView: View {
     }
 }
 
-#Preview("HistoryItemView") {
-    let sampleCard = Card(rank: "King", suit: "Hearts")
+#Preview("HistoryItemView - Single Card") {
     let sampleEvent = DrawEvent(
-        card: sampleCard,
+        cards: [Card(rank: "King", suit: "Hearts")],
         eventType: .draw,
         deckCount: 1,
         remainingCards: 51
@@ -288,6 +448,38 @@ struct HistoryItemView: View {
 
     return HistoryItemView(event: sampleEvent)
         .padding()
+        .frame(width: 300)
+}
+
+#Preview("HistoryItemView - Multiple Cards") {
+    let sampleCards = [
+        Card(rank: "King", suit: "Hearts"),
+        Card(rank: "Queen", suit: "Diamonds"),
+        Card(rank: "Jack", suit: "Spades")
+    ]
+    let sampleEvent = DrawEvent(
+        cards: sampleCards,
+        eventType: .draw,
+        deckCount: 1,
+        remainingCards: 49
+    )
+
+    return HistoryItemView(event: sampleEvent)
+        .padding()
+        .frame(width: 300)
+}
+
+#Preview("HistoryItemView - Shuffle") {
+    let sampleEvent = DrawEvent(
+        cards: nil,
+        eventType: .shuffle,
+        deckCount: 2,
+        remainingCards: 104
+    )
+
+    return HistoryItemView(event: sampleEvent)
+        .padding()
+        .frame(width: 300)
 }
 
 struct CopyHistoryView: View {
@@ -302,8 +494,8 @@ struct CopyHistoryView: View {
 
     private func copyAllHistory() {
         let historyText = drawHistory.compactMap { event in
-            guard let card = event.card else { return nil }
-            return copyWithSymbol ? card.shortDescription : card.description
+            guard let cards = event.cards, let firstCard = cards.first else { return nil }
+            return copyWithSymbol ? firstCard.shortDescription : firstCard.description
         }.reversed().joined(separator: "\n")
 
         NSPasteboard.general.clearContents()
@@ -311,15 +503,119 @@ struct CopyHistoryView: View {
     }
 }
 
+struct DeckControlsView: View {
+    @Binding var selectedDrawCount: Int
+    @Binding var deckCount: Int
+    @Binding var uniqueColors: Bool
+    @Binding var historyEnabled: Bool
+    @Binding var clearHistoryOnShuffle: Bool
+    @Binding var copyWithSymbol: Bool
+    var remainingCards: Int
+
+
+    let drawAction: () -> Void
+    let shuffleAction: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Draw controls
+            Menu {
+                ForEach([1, 2, 3, 4, 5, 6, 7], id: \.self) { count in
+                    Button("Draw \(count)") {
+                        selectedDrawCount = count
+                    }
+                }
+            } label: {
+                Text("Draw \(selectedDrawCount)")
+                    .padding(.horizontal)
+            } primaryAction: {
+                if remainingCards >= selectedDrawCount {
+                    drawAction()
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .frame(width: 100)
+            .controlSize(.large)
+            .padding(.horizontal, 4)
+            .tint(remainingCards >= selectedDrawCount ? .accentColor : .gray)
+            .opacity(remainingCards >= selectedDrawCount ? 1.0 : 0.5)
+
+
+            Spacer()
+
+            // Shuffle button
+            Button(action: shuffleAction) {
+                Text("Shuffle")
+//                Image(systemName: "shuffle")
+            }
+            .buttonStyle(.bordered)
+
+
+            // Settings menu
+            Menu {
+                Group {
+                    Picker("Number of Decks", selection: $deckCount) {
+                        ForEach(1...8, id: \.self) { count in
+                            Text("\(count)").tag(count)
+                        }
+                    }
+                    Toggle("Unique Suit Colors", isOn: $uniqueColors)
+                }
+
+                Divider()
+
+                Group {
+                    Toggle("Keep History", isOn: $historyEnabled)
+                    if historyEnabled {
+                        Toggle("Clear on Shuffle", isOn: $clearHistoryOnShuffle)
+                    }
+                    Toggle("Use Symbols", isOn: $copyWithSymbol)
+                }
+
+                Divider()
+
+                Button("Quit") {
+                    NSApplication.shared.terminate(nil)
+                }
+            } label: {
+                Image(systemName: "gear")
+                    .foregroundColor(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+        }
+    }
+}
+
+#Preview("DeckControlsView") {
+    DeckControlsView(
+        selectedDrawCount: .constant(1),
+        deckCount: .constant(1),
+        uniqueColors: .constant(true),
+        historyEnabled: .constant(true),
+        clearHistoryOnShuffle: .constant(false),
+        copyWithSymbol: .constant(false),
+        remainingCards: 40,
+        drawAction: {},
+        shuffleAction: {}
+    )
+    .padding()
+    .frame(width: 250)
+}
+
+
 struct ContentView: View {
     @AppStorage("deckCount") private var deckCount = 1
     @AppStorage("historyEnabled") private var historyEnabled = true
     @AppStorage("copyWithSymbol") private var copyWithSymbol = false
     @AppStorage("clearHistoryOnShuffle") private var clearHistoryOnShuffle = false
     @AppStorage("uniqueColors") private var uniqueColors = true
+    @AppStorage("selectedDrawCount") private var selectedDrawCount = 1
+
     @State private var deck: Deck
     @State private var currentDraw: DrawEvent?
-    @State private var drawHistory: [DrawEvent] = []
+    @State private var history: [AnyHashable] = []
     @State private var showHistory = false
 
     init() {
@@ -329,61 +625,36 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            // Main controls
-            HStack(spacing: 8) {
-                Button(action: drawCard) {
-                    HStack {
-                        Image(systemName: "rectangle.stack")
-                        Text("Draw")
+            // New Controls Layout
+            DeckControlsView(
+                selectedDrawCount: $selectedDrawCount,
+                deckCount: $deckCount,
+                uniqueColors: $uniqueColors,
+                historyEnabled: $historyEnabled,
+                clearHistoryOnShuffle: $clearHistoryOnShuffle,
+                copyWithSymbol: $copyWithSymbol,
+                remainingCards: deck.remainingCards,
+                drawAction: drawCards,
+                shuffleAction: shuffleDeck
+            )
+
+
+
+            // Current draw result
+            Group {
+                if let currentDraw = currentDraw, let cards = currentDraw.cards {
+                    CardResultView(cards: cards, remainingCards: deck.remainingCards)
+                } else {
+                    VStack {
+                        Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) cards")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
-                .disabled(deck.remainingCards == 0)
-
-                Button(action: shuffleDeck) {
-                    HStack {
-                        Image(systemName: "shuffle")
-                        Text("Shuffle")
-                    }
-                }
-
-                Spacer()
-
-                Menu {
-                    Stepper("Number of Decks: \(deckCount)", value: $deckCount, in: 1...8)
-                        .onChange(of: deckCount) { oldValue, newValue in
-                            shuffleDeck()
-                        }
-                    Toggle("Use unique colors for suits", isOn: $uniqueColors)
-                    Toggle("Enable History", isOn: $historyEnabled)
-                    Toggle("Clear History on Shuffle", isOn: $clearHistoryOnShuffle)
-                        .disabled(!historyEnabled)
-                        .opacity(historyEnabled ? 1.0 : 0.5)
-                    Toggle("Copy as Symbol", isOn: $copyWithSymbol)
-                    Divider()
-                    Button("Quit", action: {
-                        NSApplication.shared.terminate(nil)
-                    })
-                } label: {
-                    Image(systemName: "gear")
-                        .foregroundColor(.secondary)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
             }
 
-            if let currentDraw = currentDraw {
-                CardResultView(card: currentDraw.card, remainingCards: deck.remainingCards)
-            } else {
-                VStack {
-                    Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) cards")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-            }
-
-            if historyEnabled && !drawHistory.isEmpty {
+            // History section
+            if historyEnabled && !history.isEmpty {
                 Divider()
 
                 Button {
@@ -403,60 +674,83 @@ struct ContentView: View {
                 if showHistory {
                     ScrollView {
                         VStack(spacing: 8) {
-                            ForEach(drawHistory) { event in
-                                HistoryItemView(event: event)
+                            ForEach(history, id: \.self) { event in
+                                if let drawEvent = event as? DrawEvent {
+                                    HistoryItemView(event: drawEvent)
+                                }
                             }
                         }
                     }
                     .frame(height: 300)
-                    CopyHistoryView(drawHistory: drawHistory)
+
+                    if !history.isEmpty {
+                        Button("Copy All History") {
+                            copyAllHistory()
+                        }
+                    }
                 }
             }
         }
         .padding()
-        .frame(width: 250)
+        .frame(width: 300)
     }
 
+    // Updated draw function to handle variable card counts
+    private func drawCards() {
+        currentDraw = nil
 
+        if let cards = deck.drawCards(count: selectedDrawCount) {
+            let event = DrawEvent(
+                cards: cards,
+                eventType: .draw,
+                deckCount: deckCount,
+                remainingCards: deck.remainingCards
+            )
+            currentDraw = event
 
-    private func drawCard() {
-        let card = deck.draw()
-        let event = DrawEvent(
-            card: card,
-            eventType: .draw,
-            deckCount: deckCount,
-            remainingCards: deck.remainingCards
-        )
-        currentDraw = event
-
-        if historyEnabled {
-            drawHistory.insert(event, at: 0)
-            if drawHistory.count > 50 {
-                drawHistory.removeLast()
+            if historyEnabled {
+                history.insert(event, at: 0)
             }
+        }
+
+        // Trim history if needed
+        if history.count > 50 {
+            history.removeLast()
         }
     }
 
     private func shuffleDeck() {
         deck = Deck(numberOfDecks: deckCount)
-        let event = DrawEvent(
-            card: nil,
-            eventType: .shuffle,
-            deckCount: deckCount,
-            remainingCards: deck.remainingCards
-        )
         currentDraw = nil
 
         if historyEnabled {
             if clearHistoryOnShuffle {
-                drawHistory = []
+                history = []
             } else {
-                drawHistory.insert(event, at: 0)
-                if drawHistory.count > 50 {
-                    drawHistory.removeLast()
+                let event = DrawEvent(
+                    cards: nil,
+                    eventType: .shuffle,
+                    deckCount: deckCount,
+                    remainingCards: deck.remainingCards
+                )
+                history.insert(event, at: 0)
+                if history.count > 50 {
+                    history.removeLast()
                 }
             }
         }
     }
-}
 
+    private func copyAllHistory() {
+        let historyText = history.compactMap { event -> String? in
+            if let drawEvent = event as? DrawEvent {
+                guard let cards = drawEvent.cards, let firstCard = cards.first else { return nil }
+                return copyWithSymbol ? firstCard.shortDescription : firstCard.description
+            }
+            return nil
+        }.joined(separator: "\n")
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(historyText, forType: .string)
+    }
+}
