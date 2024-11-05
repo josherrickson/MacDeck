@@ -383,8 +383,6 @@ struct HistoryItemView: View {
                     VStack {
                         Text(event.description)
                             .font(.system(.caption, weight: .bold))
-                        Text("\(event.remainingCards) cards left")
-                            .font(.caption)
                     }
                     Spacer()
 
@@ -392,41 +390,35 @@ struct HistoryItemView: View {
 
                 // Timestamp and copy button section
                 VStack(alignment: .trailing, spacing: 4) {
-                    if event.eventType == .draw {
-                        Text("\(event.remainingCards) cards left")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
+                    Text("\(event.remainingCards) cards left")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
 
                     HStack {
                         Text(event.formattedTime)
                             .font(.caption2)
                             .foregroundColor(.secondary)
 
-                        if event.eventType == .draw {
-                            Button {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(copyText, forType: .string)
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(copyText, forType: .string)
 
-                                withAnimation {
-                                    isCopied = true
-                                }
-
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                    withAnimation {
-                                        isCopied = false
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: isCopied ? "checkmark.circle.fill" : "doc.on.doc")
-                                    .foregroundColor(isCopied ? .green : .secondary)
-                                    .font(.caption)
+                            withAnimation {
+                                isCopied = true
                             }
-                            .buttonStyle(.plain)
+
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                withAnimation {
+                                    isCopied = false
+                                }
+                            }
+                        } label: {
+                            Image(systemName: isCopied ? "checkmark.circle.fill" : "doc.on.doc")
+                                .foregroundColor(isCopied ? .green : .secondary)
+                                .font(.caption)
                         }
-                    }
-                    if event.eventType == .shuffle {
-                        Spacer()
+                        .buttonStyle(.plain)
+                        .disabled(event.eventType == .shuffle)
                     }
                 }
             }
@@ -440,25 +432,25 @@ struct HistoryItemView: View {
 
 #Preview("HistoryItemView - Single Card") {
     let sampleEvent = DrawEvent(
-        cards: [Card(rank: "King", suit: "Hearts")],
-        eventType: .draw,
-        deckCount: 1,
-        remainingCards: 51
-    )
+            cards: [Card(rank: "King", suit: "Hearts")],
+            eventType: .draw,
+            deckCount: 1,
+            remainingCards: 51
+        )
 
-    return HistoryItemView(event: sampleEvent)
-        .padding()
-        .frame(width: 300)
-}
+        return HistoryItemView(event: sampleEvent)
+            .padding()
+            .frame(width: 300)
+    }
 
-#Preview("HistoryItemView - Multiple Cards") {
-    let sampleCards = [
-        Card(rank: "King", suit: "Hearts"),
-        Card(rank: "Queen", suit: "Diamonds"),
-        Card(rank: "Jack", suit: "Spades")
-    ]
-    let sampleEvent = DrawEvent(
-        cards: sampleCards,
+    #Preview("HistoryItemView - Multiple Cards") {
+        let sampleCards = [
+            Card(rank: "King", suit: "Hearts"),
+            Card(rank: "Queen", suit: "Diamonds"),
+            Card(rank: "Jack", suit: "Spades")
+        ]
+        let sampleEvent = DrawEvent(
+            cards: sampleCards,
         eventType: .draw,
         deckCount: 1,
         remainingCards: 49
