@@ -519,32 +519,24 @@ struct DeckControlsView: View {
     var body: some View {
         HStack(spacing: 8) {
             // Draw controls
-
-            HStack(spacing: 0) {
-                Button(action: {
-                    drawAction()
-                }) {
-                    Text("Draw \(selectedDrawCount)")
-                        .padding(.horizontal)
-                }
-                .buttonStyle(.borderedProminent)  // or .bordered depending on your design
-                .frame(width: 100)
-                .controlSize(.regular)  // Can be .mini, .small, .regular, or .large
-                .padding(.horizontal, 4)
-                .disabled(remainingCards < selectedDrawCount)
-
-                Menu {
-                    ForEach([1, 2, 3, 4, 5, 6, 7], id: \.self) { count in
-                        Button("Draw \(count)") {
-                            selectedDrawCount = count
-                        }
+            Menu {
+                ForEach([1, 2, 3, 4, 5, 6, 7], id: \.self) { count in
+                    Button("Draw \(count)") {
+                        selectedDrawCount = count
                     }
-                } label: {
-                    Text("#")
                 }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
+            } label: {
+                Text("Draw \(selectedDrawCount)")
+                    .padding(.horizontal)
+            } primaryAction: {
+                drawAction()
             }
+            .buttonStyle(.borderedProminent)  // or .bordered depending on your design
+            .frame(width: 100)
+            .controlSize(.large)  // Can be .mini, .small, .regular, or .large
+            .padding(.horizontal, 4)
+            .disabled(remainingCards < selectedDrawCount)
+
 
 
             Spacer()
