@@ -529,14 +529,16 @@ struct DeckControlsView: View {
                 Text("Draw \(selectedDrawCount)")
                     .padding(.horizontal)
             } primaryAction: {
-                drawAction()
+                if remainingCards >= selectedDrawCount {
+                    drawAction()
+                }
             }
-            .buttonStyle(.borderedProminent)  // or .bordered depending on your design
+            .buttonStyle(.borderedProminent)
             .frame(width: 100)
-            .controlSize(.large)  // Can be .mini, .small, .regular, or .large
+            .controlSize(.large)
             .padding(.horizontal, 4)
-            .disabled(remainingCards < selectedDrawCount)
-
+            .tint(remainingCards >= selectedDrawCount ? .accentColor : .gray)
+            .opacity(remainingCards >= selectedDrawCount ? 1.0 : 0.5)
 
 
             Spacer()
