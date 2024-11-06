@@ -678,7 +678,7 @@ struct DeckControlsView: View {
                     if historyEnabled {
                         Toggle("Clear on Shuffle", isOn: $clearHistoryOnShuffle)
                     }
-                    Toggle("Use Symbols", isOn: $copyWithSymbol)
+                    Toggle("Copy Symbols", isOn: $copyWithSymbol)
                 }
 
                 Divider()
