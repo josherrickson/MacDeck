@@ -651,7 +651,7 @@ struct DeckControlsView: View {
             // Shuffle button
             Button(action: shuffleAction) {
                 Text("Shuffle")
-//                Image(systemName: "shuffle")
+                Image(systemName: "shuffle")
             }
             .buttonStyle(.bordered)
 
