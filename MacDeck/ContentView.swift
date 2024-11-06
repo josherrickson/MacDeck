@@ -369,7 +369,7 @@ struct DeckShuffleView: View {
     let remainingCards: Int
     let shuffleId: UUID
 
-    // Function to generate distinct colors
+    // https://sashamaps.net/docs/resources/20-colors/
     private static let availableColors: [Color] = [
         Color(red: 0.90, green: 0.10, blue: 0.29),    // #e6194B
         Color(red: 0.24, green: 0.70, blue: 0.29),    // #3cb44b
@@ -398,8 +398,8 @@ struct DeckShuffleView: View {
         self.remainingCards = remainingCards
         self.shuffleId = shuffleId
 
-        // Ensure numberOfDecks does not exceed available colors
-        assert(numberOfDecks <= DeckShuffleView.availableColors.count, "Not enough unique colors for the number of decks.")
+        assert(numberOfDecks <= DeckShuffleView.availableColors.count,
+               "Not enough unique colors for the number of decks.")
 
         // Shuffle the colors and take the required amount
         self.deckColors = Array(DeckShuffleView.availableColors.shuffled().prefix(numberOfDecks))
