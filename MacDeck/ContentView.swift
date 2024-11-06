@@ -369,27 +369,43 @@ struct DeckShuffleView: View {
     let remainingCards: Int
     let shuffleId: UUID
 
-    // Expanded preset deck colors
-    private let availableColors: [Color] = [
-        .blue,
-        .red,
-        .purple,
-        .green,
-        .orange,
-        .indigo,
-        .teal,
-        .pink,
-        .brown,
-        .cyan,
-        .mint,
-        .yellow,
-        .gray
+    // Function to generate distinct colors
+    private static let availableColors: [Color] = [
+        Color(red: 0.90, green: 0.10, blue: 0.29),    // #e6194B
+        Color(red: 0.24, green: 0.70, blue: 0.29),    // #3cb44b
+        Color(red: 1.00, green: 0.88, blue: 0.10),    // #ffe119
+        Color(red: 0.26, green: 0.39, blue: 0.85),    // #4363d8
+        Color(red: 0.96, green: 0.51, blue: 0.19),    // #f58231
+        Color(red: 0.26, green: 0.83, blue: 0.96),    // #42d4f4
+        Color(red: 0.94, green: 0.20, blue: 0.90),    // #f032e6
+        Color(red: 0.98, green: 0.75, blue: 0.83),    // #fabed4
+        Color(red: 0.86, green: 0.75, blue: 1.00),    // #dcbeff
+        Color(red: 0.60, green: 0.39, blue: 0.14),    // #9A6324
+        Color(red: 1.00, green: 0.98, blue: 0.78),    // #fffac8
+        Color(red: 0.50, green: 0.00, blue: 0.00),    // #800000
+        Color(red: 0.67, green: 1.00, blue: 0.76),    // #aaffc3
+        Color(red: 0.66, green: 0.66, blue: 0.66),    // #a9a9a9
+        Color(red: 1.00, green: 1.00, blue: 1.00),    // #ffffff
+        Color(red: 0.00, green: 0.00, blue: 0.00)     // #000000
     ]
 
-    // Get unique random colors based on number of decks
-    private var deckColors: [Color] {
-        Array(availableColors.shuffled().prefix(numberOfDecks))
+
+    // Store deckColors as a property initialized once
+    private let deckColors: [Color]
+
+    init(numberOfDecks: Int, remainingCards: Int, shuffleId: UUID) {
+        self.numberOfDecks = numberOfDecks
+        self.remainingCards = remainingCards
+        self.shuffleId = shuffleId
+
+        // Ensure numberOfDecks does not exceed available colors
+        assert(numberOfDecks <= DeckShuffleView.availableColors.count, "Not enough unique colors for the number of decks.")
+
+        // Shuffle the colors and take the required amount
+        self.deckColors = Array(DeckShuffleView.availableColors.shuffled().prefix(numberOfDecks))
     }
+
+
 
     var body: some View {
         HStack(spacing: 8) {
