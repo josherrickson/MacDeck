@@ -233,7 +233,36 @@ struct CardView: View {
 
 }
 
+struct DeckView: View {
+    let backColor: Color
 
+    var body: some View {
+        ZStack {
+            // Same base card shape as CardView
+            RoundedRectangle(cornerRadius: 4)
+                .fill(.background)
+                .shadow(radius: 1)
+
+            RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(.secondary.opacity(0.3), lineWidth: 0.5)
+
+            RoundedRectangle(cornerRadius: 3)
+                .fill(backColor)
+                .padding(1)
+        }
+        .frame(width: 20, height: 32)
+    }
+}
+
+// Preview provider for SwiftUI canvas
+#Preview {
+    HStack(spacing: 4) {
+        DeckView(backColor: .red)
+        DeckView(backColor: .blue)
+        DeckView(backColor: .green)
+    }
+    .padding()
+}
 
 
 struct CardResultView: View {
@@ -335,6 +364,81 @@ struct CardResultView: View {
 
 }
 
+struct DeckShuffleView: View {
+    let numberOfDecks: Int
+    let remainingCards: Int
+    let shuffleId: UUID
+
+    // Expanded preset deck colors
+    private let availableColors: [Color] = [
+        .blue,
+        .red,
+        .purple,
+        .green,
+        .orange,
+        .indigo,
+        .teal,
+        .pink,
+        .brown,
+        .cyan,
+        .mint,
+        .yellow,
+        .gray
+    ]
+
+    // Get unique random colors based on number of decks
+    private var deckColors: [Color] {
+        Array(availableColors.shuffled().prefix(numberOfDecks))
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // Overlapping deck stack and count label
+            HStack {
+                ZStack {
+                    ForEach(0..<numberOfDecks, id: \.self) { index in
+                        DeckView(backColor: deckColors[index])
+                            .offset(x: Double(index) * 8)
+                    }
+                }
+                .frame(width: Double(numberOfDecks - 1) * 8 + 20, alignment: .leading)
+
+                Text("\(numberOfDecks) deck\(numberOfDecks == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 8) {
+                Text("\(remainingCards) cards left")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.trailing)
+
+                Button {
+                    // Disabled, no action
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .foregroundColor(.secondary.opacity(0.5))
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .disabled(true)
+            }
+        }
+    }
+}
+
+// Preview provider for SwiftUI canvas
+#Preview("DeckShuffleView") {
+    VStack(spacing: 20) {
+        DeckShuffleView(numberOfDecks: 1, remainingCards: 52, shuffleId: UUID())
+        DeckShuffleView(numberOfDecks: 3, remainingCards: 156, shuffleId: UUID())
+        DeckShuffleView(numberOfDecks: 6, remainingCards: 312, shuffleId: UUID())
+    }
+    .padding()
+}
 
 struct HistoryItemView: View {
     let event: DrawEvent
@@ -597,6 +701,7 @@ struct ContentView: View {
     @AppStorage("clearHistoryOnShuffle") private var clearHistoryOnShuffle = false
     @AppStorage("uniqueColors") private var uniqueColors = true
     @AppStorage("selectedDrawCount") private var selectedDrawCount = 1
+    
 
     @State private var deck: Deck
     @State private var currentDraw: DrawEvent?
@@ -630,11 +735,9 @@ struct ContentView: View {
                 if let currentDraw = currentDraw, let cards = currentDraw.cards {
                     CardResultView(cards: cards, remainingCards: deck.remainingCards)
                 } else {
-                    VStack {
-                        Text("\(deckCount) deck\(deckCount > 1 ? "s" : ""), \(deck.remainingCards) cards")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    DeckShuffleView(numberOfDecks: deckCount,
+                                    remainingCards: deck.remainingCards,
+                                    shuffleId: UUID())
                 }
             }
 
