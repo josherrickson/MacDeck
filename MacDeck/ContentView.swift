@@ -255,33 +255,26 @@ struct CardResultView: View {
         HStack(spacing: 8) {
             if cards.count == 1, let card = cards.first {
                 HStack {
-                    Spacer()
                     CardView(card: card)
-                    Spacer()
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Spacer()
                             Text(card.description)
                                 .bold()
                                 .foregroundColor(card.color(uniqueColors: uniqueColors))
-                            Spacer()
                         }
                     }
-                    Spacer()
                 }
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
-                        Spacer()
                         ForEach(cards) { card in
                             CardView(card: card)
                         }
-                        Spacer()
                     }
-                    .padding(.horizontal, 4)
                 }
             }
-            
+            Spacer()
+
             VStack(alignment: .trailing, spacing: 8) {
                 Text("\(remainingCards) cards left")
                     .font(.footnote)
