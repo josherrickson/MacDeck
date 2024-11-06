@@ -660,8 +660,12 @@ struct DeckControlsView: View {
             Menu {
                 Group {
                     Picker("Number of Decks", selection: $deckCount) {
-                        ForEach(1...8, id: \.self) { count in
-                            Text("\(count)").tag(count)
+                        Section {
+                            ForEach(1...8, id: \.self) { count in
+                                Text("\(count)").tag(count)
+                            }
+                        } header: {
+                            Text("Changing deck count will reshuffle")
                         }
                     }
                     Toggle("Unique Suit Colors", isOn: $uniqueColors)
@@ -797,6 +801,9 @@ struct ContentView: View {
         }
         .padding()
         .frame(width: 300)
+        .onChange(of: deckCount) { _, _ in
+            shuffleDeck()
+        }
     }
 
     // Updated draw function to handle variable card counts
