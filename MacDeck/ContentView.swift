@@ -686,26 +686,24 @@ struct DeckControlsView: View {
 
             // Settings menu
             Menu {
-
                 Toggle("Unique Suit Colors", isOn: $uniqueColors)
                 Toggle("Copy Symbols", isOn: $copyWithSymbol)
                 Toggle("Keep History", isOn: $historyEnabled)
-                if historyEnabled {
-                    Toggle("Clear on Shuffle", isOn: $clearHistoryOnShuffle)
-                }
+                Toggle("Clear History on Shuffle", isOn: $clearHistoryOnShuffle)
+                    .disabled(!historyEnabled)
 
                 Divider()
 
-                Text("Changing any settings in this group will reshuffle")
-                Picker("Number of Decks", selection: $deckCount) {
-                    Section {
+                Section(header: Text("Changing these settings will reshuffle")
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)) {
+                    Picker("Number of Decks", selection: $deckCount) {
                         ForEach(1...8, id: \.self) { count in
                             Text("\(count)").tag(count)
                         }
                     }
+                    Toggle("Include Jokers", isOn: $deckHasJokers)
                 }
-                Toggle("Include Jokers",
-                       isOn: $deckHasJokers)
 
                 Divider()
 
