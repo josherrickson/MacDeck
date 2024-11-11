@@ -686,30 +686,26 @@ struct DeckControlsView: View {
 
             // Settings menu
             Menu {
-                Group {
-                    Picker("Number of Decks", selection: $deckCount) {
-                        Section {
-                            ForEach(1...8, id: \.self) { count in
-                                Text("\(count)").tag(count)
-                            }
-                        } header: {
-                            Text("Changing deck count will reshuffle")
-                        }
-                    }
-                    Toggle("Unique Suit Colors", isOn: $uniqueColors)
-                    Toggle("Include Jokers (changing will reshuffle)",
-                           isOn: $deckHasJokers)
+
+                Toggle("Unique Suit Colors", isOn: $uniqueColors)
+                Toggle("Copy Symbols", isOn: $copyWithSymbol)
+                Toggle("Keep History", isOn: $historyEnabled)
+                if historyEnabled {
+                    Toggle("Clear on Shuffle", isOn: $clearHistoryOnShuffle)
                 }
 
                 Divider()
 
-                Group {
-                    Toggle("Keep History", isOn: $historyEnabled)
-                    if historyEnabled {
-                        Toggle("Clear on Shuffle", isOn: $clearHistoryOnShuffle)
+                Text("Changing any settings in this group will reshuffle")
+                Picker("Number of Decks", selection: $deckCount) {
+                    Section {
+                        ForEach(1...8, id: \.self) { count in
+                            Text("\(count)").tag(count)
+                        }
                     }
-                    Toggle("Copy Symbols", isOn: $copyWithSymbol)
                 }
+                Toggle("Include Jokers",
+                       isOn: $deckHasJokers)
 
                 Divider()
 
@@ -834,9 +830,12 @@ struct ContentView: View {
         }
         .onChange(of: deckCount) {
             deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
+            // This second shuffle seems redundant, but it forces some redraws
+            shuffleDeck()
         }
         .onChange(of: deckHasJokers) {
             deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
+            shuffleDeck()
         }
     }
 
