@@ -4,20 +4,36 @@ import SwiftUI
 
 
 struct Card: Identifiable, Equatable {
-    let id = UUID()
+    let id: UUID
     let rank: String
     let suit: String
+    let isJoker: Bool
 
+    init(id: UUID = UUID(), rank: String, suit: String, isJoker: Bool = false) {
+        self.id = id
+        self.rank = rank
+        self.suit = suit
+        self.isJoker = isJoker
+    }
 
     var description: String {
-        "\(rank) of \(suit)"
+        if (self.isJoker) {
+            return "Joker"
+        }
+        return "\(rank) of \(suit)"
     }
 
     var shortDescription: String {
-        "\(rank.first?.description ?? "")\(unicodeSuit)"
+        if (self.isJoker) {
+            return "JKR"
+        }
+        return "\(rank.first?.description ?? "")\(unicodeSuit)"
     }
 
     var suitImage: Image {
+        if (self.isJoker) {
+            return Image(systemName: "theatermasks.fill")
+        }
         switch suit {
         case "Hearts":
             return Image(systemName: "suit.heart.fill")
@@ -48,6 +64,9 @@ struct Card: Identifiable, Equatable {
     }
 
     func color(uniqueColors: Bool) -> Color {
+        if (self.isJoker) {
+            return .suitPurple
+        }
         switch suit {
         case "Hearts":
             return .suitRed
@@ -71,7 +90,7 @@ struct Deck {
     private var cards: [Card]
     let deckCount: Int
 
-    init(numberOfDecks: Int = 1) {
+    init(numberOfDecks: Int = 1, deckHasJokers: Bool) {
         self.deckCount = numberOfDecks
         self.cards = []
         for _ in 0..<numberOfDecks {
@@ -79,6 +98,14 @@ struct Deck {
                 for rank in ranks {
                     cards.append(Card(rank: rank, suit: suit))
                 }
+            }
+        }
+        if (deckHasJokers) {
+            // add 2 jokers per deck
+            for _ in 0..<numberOfDecks {
+                // Using "Jack" for "J"
+                cards.append(Card(rank: "Jack", suit: "Hearts", isJoker: true))
+                cards.append(Card(rank: "Jack", suit: "Hearts", isJoker: true))
             }
         }
         shuffle()
@@ -612,6 +639,7 @@ struct DeckControlsView: View {
     @Binding var selectedDrawCount: Int
     @Binding var deckCount: Int
     @Binding var uniqueColors: Bool
+    @Binding var deckHasJokers: Bool
     @Binding var historyEnabled: Bool
     @Binding var clearHistoryOnShuffle: Bool
     @Binding var copyWithSymbol: Bool
@@ -669,6 +697,8 @@ struct DeckControlsView: View {
                         }
                     }
                     Toggle("Unique Suit Colors", isOn: $uniqueColors)
+                    Toggle("Include Jokers (changing will reshuffle)",
+                           isOn: $deckHasJokers)
                 }
 
                 Divider()
@@ -702,6 +732,7 @@ struct DeckControlsView: View {
         selectedDrawCount: .constant(1),
         deckCount: .constant(1),
         uniqueColors: .constant(true),
+        deckHasJokers: .constant(true),
         historyEnabled: .constant(true),
         clearHistoryOnShuffle: .constant(false),
         copyWithSymbol: .constant(false),
@@ -720,18 +751,14 @@ struct ContentView: View {
     @AppStorage("copyWithSymbol") private var copyWithSymbol = false
     @AppStorage("clearHistoryOnShuffle") private var clearHistoryOnShuffle = false
     @AppStorage("uniqueColors") private var uniqueColors = true
+    @AppStorage("deckHasJokers") private var deckHasJokers = false
     @AppStorage("selectedDrawCount") private var selectedDrawCount = 1
     
 
-    @State private var deck: Deck
+    @State private var deck: Deck = Deck(numberOfDecks: 1, deckHasJokers: false)
     @State private var currentDraw: DrawEvent?
     @State private var history: [AnyHashable] = []
     @State private var showHistory = false
-
-    init() {
-        let savedDeckCount = UserDefaults.standard.integer(forKey: "deckCount")
-        _deck = State(initialValue: Deck(numberOfDecks: savedDeckCount > 0 ? savedDeckCount : 1))
-    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -740,6 +767,7 @@ struct ContentView: View {
                 selectedDrawCount: $selectedDrawCount,
                 deckCount: $deckCount,
                 uniqueColors: $uniqueColors,
+                deckHasJokers: $deckHasJokers,
                 historyEnabled: $historyEnabled,
                 clearHistoryOnShuffle: $clearHistoryOnShuffle,
                 copyWithSymbol: $copyWithSymbol,
@@ -801,8 +829,14 @@ struct ContentView: View {
         }
         .padding()
         .frame(width: 300)
-        .onChange(of: deckCount) { _, _ in
-            shuffleDeck()
+        .onAppear {
+            deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
+        }
+        .onChange(of: deckCount) {
+            deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
+        }
+        .onChange(of: deckHasJokers) {
+            deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
         }
     }
 
@@ -831,7 +865,7 @@ struct ContentView: View {
     }
 
     private func shuffleDeck() {
-        deck = Deck(numberOfDecks: deckCount)
+        deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
         currentDraw = nil
 
         if historyEnabled {
