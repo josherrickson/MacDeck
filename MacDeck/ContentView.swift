@@ -791,12 +791,18 @@ struct ContentView: View {
     @AppStorage("deckHasJokers") private var deckHasJokers = false
     @AppStorage("selectedDrawCount") private var selectedDrawCount = 1
 
-
     @State private var currentDraw: DrawEvent?
     @State private var history: [AnyHashable] = []
     @State private var showHistory = false
 
+    // Instantiating these with dummy items, to be updated in init below
+    @State private var deckTemplate = DeckTemplate.standard(includeJokers: false) // Initialize here
     @State private var deck = Deck(template: DeckTemplate.standard(includeJokers: false), numberOfDecks: 1)
+
+    init() {
+        self.deckTemplate = DeckTemplate.standard(includeJokers: deckHasJokers)
+        self.deck = Deck(template: self.deckTemplate, numberOfDecks: deckCount)
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -868,13 +874,15 @@ struct ContentView: View {
         .padding()
         .frame(width: 300)
         .onChange(of: deckCount) {
-            deck = Deck(template: DeckTemplate.standard(includeJokers: deckHasJokers),
+            deckTemplate = DeckTemplate.standard(includeJokers: deckHasJokers)
+            deck = Deck(template: deckTemplate,
                         numberOfDecks: deckCount)
             // This second shuffle seems redundant, but it forces some redraws
             shuffleDeck()
         }
         .onChange(of: deckHasJokers) {
-            deck = Deck(template: DeckTemplate.standard(includeJokers: deckHasJokers),
+            deckTemplate = DeckTemplate.standard(includeJokers: deckHasJokers)
+            deck = Deck(template: deckTemplate,
                         numberOfDecks: deckCount)
             shuffleDeck()
         }
@@ -905,7 +913,7 @@ struct ContentView: View {
     }
 
     private func shuffleDeck() {
-        deck = Deck(template: DeckTemplate.standard(includeJokers: deckHasJokers),
+        deck = Deck(template: deckTemplate,
                     numberOfDecks: deckCount)
         currentDraw = nil
 
