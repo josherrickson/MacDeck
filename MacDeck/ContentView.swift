@@ -83,31 +83,65 @@ struct Card: Identifiable, Equatable {
 
 }
 
+struct DeckTemplate {
+    var rankCounts: [String: Int] // How many of each rank to include
+    var includedSuits: Set<String> // Which suits to include
+    var numberOfJokers: Int
+
+    static let standardRanks = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King"]
+    static let standardSuits = ["Hearts", "Diamonds", "Clubs", "Spades"]
+
+    // Default configuration for a standard 52-card deck
+    static func standard(includeJokers: Bool = false) -> DeckTemplate {
+        var rankCounts: [String: Int] = [:]
+        for rank in standardRanks {
+            rankCounts[rank] = 1 // One of each rank by default
+        }
+        return DeckTemplate(
+            rankCounts: rankCounts,
+            includedSuits: Set(standardSuits),
+            numberOfJokers: includeJokers ? 2 : 0
+        )
+    }
+
+    // Helper to create custom configurations
+    static func noFaceCards() -> DeckTemplate {
+        var config = standard()
+        config.rankCounts.removeValue(forKey: "Jack")
+        config.rankCounts.removeValue(forKey: "Queen")
+        config.rankCounts.removeValue(forKey: "King")
+        return config
+    }
+}
+
 
 struct Deck {
-    private let ranks = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King"]
-    private let suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
     private var cards: [Card]
-    let deckCount: Int
+    let template: DeckTemplate
+    let numberOfDecks: Int
 
-    init(numberOfDecks: Int = 1, deckHasJokers: Bool) {
-        self.deckCount = numberOfDecks
+    init(template: DeckTemplate = .standard(), numberOfDecks: Int = 1) {
+        self.template = template
+        self.numberOfDecks = numberOfDecks
         self.cards = []
+
+        // Add cards from multiple decks
         for _ in 0..<numberOfDecks {
-            for suit in suits {
-                for rank in ranks {
-                    cards.append(Card(rank: rank, suit: suit))
+            // Build one deck based on template
+            for suit in template.includedSuits {
+                for (rank, count) in template.rankCounts {
+                    for _ in 0..<count {
+                        cards.append(Card(rank: rank, suit: suit))
+                    }
                 }
             }
-        }
-        if (deckHasJokers) {
-            // add 2 jokers per deck
-            for _ in 0..<numberOfDecks {
-                // Using "Jack" for "J"
-                cards.append(Card(rank: "Jack", suit: "Hearts", isJoker: true))
-                cards.append(Card(rank: "Jack", suit: "Hearts", isJoker: true))
+
+            // Add jokers for this deck if specified
+            for _ in 0..<template.numberOfJokers {
+                cards.append(Card(rank: "Joker", suit: "", isJoker: true))
             }
         }
+
         shuffle()
     }
 
@@ -119,7 +153,7 @@ struct Deck {
         guard !cards.isEmpty else { return nil }
         return cards.removeLast()
     }
-    
+
     mutating func drawCards(count: Int) -> [Card]? {
         guard count <= remainingCards else { return nil }
 
@@ -132,11 +166,20 @@ struct Deck {
         return drawnCards
     }
 
-
     var remainingCards: Int {
         cards.count
     }
+
+    // Calculate how many cards should be in a complete pile
+    var totalPossibleCards: Int {
+        let cardsInOneDeck = template.includedSuits.count *
+            template.rankCounts.values.reduce(0, +) +
+            template.numberOfJokers
+        return cardsInOneDeck * numberOfDecks
+    }
 }
+
+
 
 struct DrawEvent: Identifiable, Hashable {
     let id = UUID()
@@ -747,18 +790,13 @@ struct ContentView: View {
     @AppStorage("uniqueColors") private var uniqueColors = true
     @AppStorage("deckHasJokers") private var deckHasJokers = false
     @AppStorage("selectedDrawCount") private var selectedDrawCount = 1
-    
 
-    @State private var deck: Deck = {
-        let count = UserDefaults.standard.integer(forKey: "deckCount")
-        let hasJokers = UserDefaults.standard.bool(forKey: "deckHasJokers")
-        return Deck(numberOfDecks: count == 0 ? 1 : count,
-                    deckHasJokers: hasJokers)
-    }()
 
     @State private var currentDraw: DrawEvent?
     @State private var history: [AnyHashable] = []
     @State private var showHistory = false
+
+    @State private var deck = Deck(template: DeckTemplate.standard(includeJokers: false), numberOfDecks: 1)
 
     var body: some View {
         VStack(spacing: 12) {
@@ -830,12 +868,14 @@ struct ContentView: View {
         .padding()
         .frame(width: 300)
         .onChange(of: deckCount) {
-            deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
+            deck = Deck(template: DeckTemplate.standard(includeJokers: deckHasJokers),
+                        numberOfDecks: deckCount)
             // This second shuffle seems redundant, but it forces some redraws
             shuffleDeck()
         }
         .onChange(of: deckHasJokers) {
-            deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
+            deck = Deck(template: DeckTemplate.standard(includeJokers: deckHasJokers),
+                        numberOfDecks: deckCount)
             shuffleDeck()
         }
     }
@@ -865,7 +905,8 @@ struct ContentView: View {
     }
 
     private func shuffleDeck() {
-        deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
+        deck = Deck(template: DeckTemplate.standard(includeJokers: deckHasJokers),
+                    numberOfDecks: deckCount)
         currentDraw = nil
 
         if historyEnabled {
