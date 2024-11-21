@@ -749,7 +749,13 @@ struct ContentView: View {
     @AppStorage("selectedDrawCount") private var selectedDrawCount = 1
     
 
-    @State private var deck: Deck = Deck(numberOfDecks: 1, deckHasJokers: false)
+    @State private var deck: Deck = {
+        let count = UserDefaults.standard.integer(forKey: "deckCount")
+        let hasJokers = UserDefaults.standard.bool(forKey: "deckHasJokers")
+        return Deck(numberOfDecks: count == 0 ? 1 : count,
+                    deckHasJokers: hasJokers)
+    }()
+
     @State private var currentDraw: DrawEvent?
     @State private var history: [AnyHashable] = []
     @State private var showHistory = false
@@ -823,9 +829,6 @@ struct ContentView: View {
         }
         .padding()
         .frame(width: 300)
-        .onAppear {
-            deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
-        }
         .onChange(of: deckCount) {
             deck = Deck(numberOfDecks: deckCount, deckHasJokers: deckHasJokers)
             // This second shuffle seems redundant, but it forces some redraws
